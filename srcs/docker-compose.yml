@@ -1,0 +1,90 @@
+services:
+  nginx:
+    build: ./requirements/nginx
+    container_name: nginx
+    depends_on:
+      wordpress:
+        condition: service_healthy
+    ports:
+      - "443:443"
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - inception_net
+    environment:
+      - DOMAIN_NAME=alepinto.42.fr
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:443/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  wordpress:
+    build: ./requirements/wordpress
+    container_name: wordpress
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      - DB_NAME=wordpress
+      - DB_USER=wp_user
+      - DB_HOST=mariadb
+      - DOMAIN_NAME=localhost
+      - WP_TITLE=Mi sitio WordPress
+      - WP_ADMIN_USR=admin
+      - WP_ADMIN_EMAIL=admin@example.com
+      - WP_USR=author
+      - WP_EMAIL=author@example.com
+    secrets:
+      - db_password
+      - wp_admin_password
+      - wp_user_password
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - inception_net
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep php-fpm82 > /dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  mariadb:
+    build: ./requirements/mariadb
+    container_name: mariadb
+    environment:
+      - MYSQL_DATABASE=wordpress
+      - MYSQL_USER=wp_user
+    secrets:
+      - db_password
+      - db_root_password
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - inception_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "wp_user", "-p$$(cat /run/secrets/db_password)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+secrets:
+  db_password:
+    file: ../secrets/db_password.txt
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+  wp_admin_password:
+    file: ../secrets/wp_admin_password.txt
+  wp_user_password:
+    file: ../secrets/wp_user_password.txt
+
+volumes:
+  wordpress_data:
+  mariadb_data:
+
+networks:
+  inception_net:
+    driver: bridge
