@@ -34,8 +34,8 @@ sed -i 's/listen = .*/listen = 0.0.0.0:9000/' /etc/php82/php-fpm.d/www.conf
 # Configurar PHP-FPM para modo daemon off (importante para Docker)
 sed -i 's/;daemonize = yes/daemonize = no/' /etc/php82/php-fpm.conf
 
-# Función para verificar base de datos e instalar WordPress
-install_wordpress() {
+# Función para verificar conexión con la base de datos
+wait_for_database() {
     echo "Verificando conexión con base de datos..."
     while ! php -r "
     try {
@@ -49,26 +49,25 @@ install_wordpress() {
         echo "Base de datos no disponible, esperando..."
         sleep 3
     done
-    
-    echo "¡Base de datos disponible! Instalando WordPress..."
-    
+    echo "¡Base de datos disponible!"
+}
+
+# Función para instalar WordPress usando WP-CLI
+install_wordpress() {
     # Verificar que WP-CLI esté disponible
     if ! command -v wp >/dev/null 2>&1; then
         echo "ERROR: WP-CLI no está instalado"
         return 1
     fi
-    
-    # Cambiar al directorio de WordPress
-    cd /var/www/html
-    
-    # Verificar info de WP-CLI
+
+    cd /var/www/html || return 1
+
     echo "Verificando WP-CLI..."
     if ! wp --info --allow-root 2>/dev/null; then
         echo "ERROR: WP-CLI no funciona correctamente"
         return 1
     fi
-    
-    # Instalar WordPress si no está ya instalado
+
     if ! wp core is-installed --allow-root 2>/dev/null; then
         echo "Instalando WordPress core..."
         wp core install \
@@ -78,18 +77,21 @@ install_wordpress() {
             --admin_password="$(cat /run/secrets/wp_admin_password)" \
             --admin_email="${WP_ADMIN_EMAIL}" \
             --allow-root
-        
+
         echo "Creando usuario adicional..."
         wp user create "${WP_USR}" "${WP_EMAIL}" \
             --user_pass="$(cat /run/secrets/wp_user_password)" \
             --role=author \
             --allow-root
-            
+
         echo "¡WordPress instalado correctamente!"
     else
         echo "WordPress ya está instalado."
     fi
 }
+
+# Conecta con la base de datos
+wait_for_database
 
 # Ejecutar instalación de WordPress
 install_wordpress

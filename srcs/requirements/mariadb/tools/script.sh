@@ -7,14 +7,6 @@ MYSQL_USER=${MYSQL_USER:-wp_user}
 MYSQL_PASSWORD="$(cat /run/secrets/db_password)"
 MYSQL_ROOT_PASSWORD="$(cat /run/secrets/db_root_password)"
 
-# Forzar configuración de red para Docker
-cat << EOF > /etc/my.cnf.d/99-docker.cnf
-[mysqld]
-bind-address = 0.0.0.0
-port = 3306
-skip-networking = 0
-skip-bind-address = 0
-EOF
 
 # Inicializar base de datos si no existe
 if [ ! -d /var/lib/mysql/mysql ]; then

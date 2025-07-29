@@ -1,8 +1,4 @@
-# Imagen base minimalista
-FROM alpine:latest
-
-# Directorio de trabajo
-WORKDIR /app
+FROM alpine:3.19
 
 # ---------------------------------------------
 # Cómo verificar versiones disponibles:
@@ -10,10 +6,11 @@ WORKDIR /app
 # # apk update
 # # apk search php
 #
-# En Alpine 3.22, la versión disponible es php82
+# En Alpine 3.19, la versión disponible es php82
 # ---------------------------------------------
+# Instalación de PHP 8.2 y módulos necesarios para WordPress y debugeo
+# el flag --no-cache reduce el tamaño de la imagen
 
-# Instalación de PHP 8.2 y módulos necesarios para WordPress
 RUN apk add --no-cache \
     php82 php82-fpm php82-mysqli php82-curl php82-json php82-openssl \
     php82-session php82-ctype php82-dom php82-zip php82-mbstring \
@@ -21,6 +18,7 @@ RUN apk add --no-cache \
     curl bash tar netcat-openbsd less
 
 # Crear alias para facilitar compatibilidad con scripts que esperan "php" y "/etc/php"
+# ya que Alpine nombra los paquetes con versiones especificas y no genericas
 RUN [ ! -e /usr/bin/php ] && ln -s /usr/bin/php82 /usr/bin/php || true \
  && [ ! -e /etc/php ] && ln -s /etc/php82 /etc/php || true
 
