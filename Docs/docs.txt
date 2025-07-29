@@ -1,0 +1,217 @@
+# 42 Inception - WordPress LEMP Stack Dockerizado
+
+## Tabla de Contenidos
+
+1. [Introducción](#introducción)
+2. [Arquitectura del Proyecto](#arquitectura-del-proyecto)
+3. [Flujo de Ejecución Completo](#flujo-de-ejecución-completo)
+4. [Configuración Detallada por Servicio](#configuración-detallada-por-servicio)
+5. [Redes y Volúmenes](#redes-y-volúmenes)
+6. [Gestión de Secretos](#gestión-de-secretos)
+7. [Comandos y Debugging](#comandos-y-debugging)
+8. [Troubleshooting](#troubleshooting)
+
+---
+
+## Introducción
+
+**Inception** es un proyecto de 42 School que consiste en dockerizar un stack LEMP (Linux, Nginx, MariaDB, PHP) con WordPress. El objetivo es crear una infraestructura containerizada completamente funcional usando **Docker Compose**.
+
+### Requisitos del Proyecto
+- **Nginx**: Solo tráfico HTTPS (puerto 443) con certificados TLS
+- **WordPress + PHP-FPM**: CMS funcionando con PHP 8.2
+- **MariaDB**: Base de datos para WordPress
+- **Volúmenes persistentes**: Datos de WordPress y MariaDB
+- **Red personalizada**: Comunicación entre contenedores
+- **Secrets**: Gestión segura de contraseñas
+
+---
+
+## Arquitectura del Proyecto: Microservicios
+
+El proyecto sigue una arquitectura de tres capas donde cada servicio tiene una responsabilidad específica:
+
+**Capa de Presentación (Nginx)**: Actúa como proxy reverso y terminador TLS. Recibe todas las peticiones HTTPS del navegador, maneja los certificados SSL y redirige las peticiones de archivos PHP al contenedor de WordPress. También sirve archivos estáticos directamente.
+
+**Capa de Aplicación (WordPress)**: Ejecuta PHP-FPM que procesa el código de WordPress. No tiene conexión directa con el exterior, solo recibe peticiones FastCGI desde Nginx. Se comunica con la base de datos para obtener y almacenar datos.
+
+**Capa de Datos (MariaDB)**: Almacena toda la información de WordPress: posts, usuarios, configuraciones, etc. Solo acepta conexiones desde el contenedor de WordPress, nunca del exterior.
+
+**Red Docker (inception_net)**: Todos los contenedores están conectados a una red bridge personalizada que permite la comunicación interna usando nombres de host (nginx, wordpress, mariadb) en lugar de IPs.
+
+**Volúmenes Persistentes**: Los datos importantes (archivos de WordPress y base de datos) se almacenan en volúmenes Docker que persisten incluso si los contenedores se destruyen.
+
+---
+
+## Flujo de Ejecución Completo
+
+### Inicialización del Sistema
+
+Cuando ejecutas `make build up`, Docker Compose orquesta el arranque de todos los servicios siguiendo un orden específico basado en las dependencias declaradas.
+
+### Fase 1: Construcción de Imágenes
+
+Docker construye tres imágenes personalizadas basadas en Alpine Linux. Cada Dockerfile instala los paquetes necesarios, copia los archivos de configuración y scripts, y define el comando que se ejecutará cuando el contenedor arranque.
+
+### Fase 2: Arranque de MariaDB
+
+MariaDB es el primer servicio en arrancar porque WordPress depende de él. El script de inicialización verifica si la base de datos ya existe. Si es la primera ejecución, instala MariaDB desde cero, crea la base de datos 'wordpress', y configura los usuarios con los permisos correctos.
+
+Un aspecto crítico es la configuración de red. MariaDB debe escuchar no solo en el socket Unix local, sino también en el puerto TCP 3306 en todas las interfaces de red. Esto permite que WordPress, ejecutándose en otro contenedor, pueda conectarse.
+
+El script crea múltiples versiones del usuario `wp_user` para diferentes contextos de conexión: localhost, el hostname específico que Docker asigna, y rangos de IP. Esto es necesario porque MySQL/MariaDB valida tanto el usuario como el host desde donde se conecta.
+
+### Fase 3: Arranque de WordPress
+
+Una vez que MariaDB está operativo (verificado por el healthcheck), WordPress puede arrancar. El script configura PHP-FPM para escuchar en todas las interfaces en el puerto 9000, no solo en localhost.
+
+WordPress en sí viene preinstalado en la imagen, pero el archivo wp-config.php se genera dinámicamente sustituyendo placeholders con los valores reales de la base de datos obtenidos desde los secrets.
+
+Un detalle importante es que PHP-FPM debe configurarse específicamente para entornos Docker, cambiando la configuración de 'listen' para aceptar conexiones desde otros contenedores.
+
+### Fase 4: Arranque de Nginx
+
+Nginx es el último en arrancar. Primero genera un certificado TLS autofirmado usando OpenSSL con el dominio especificado. Luego valida su configuración antes de iniciar el servicio.
+
+La configuración de Nginx incluye un bloque server que maneja HTTPS exclusivamente, con proxy reverso hacia WordPress para archivos PHP y servicio directo de archivos estáticos.
+
+### Flujo de una Petición Web
+
+Cuando un usuario navega a tu sitio, ocurre la siguiente secuencia:
+
+1. **Resolución DNS**: El navegador resuelve el dominio (configurado en /etc/hosts para desarrollo local)
+2. **Conexión TLS**: Se establece el handshake SSL/TLS con Nginx
+3. **Procesamiento Nginx**: Nginx evalúa la petición contra sus reglas de location
+4. **Delegación FastCGI**: Para archivos PHP, Nginx envía la petición a WordPress vía FastCGI
+5. **Procesamiento PHP**: WordPress ejecuta el código PHP, que puede requerir consultas a la base de datos
+6. **Consulta Database**: PHP se conecta a MariaDB usando las credenciales configuradas
+7. **Respuesta**: La cadena se invierte, devolviendo el HTML generado al navegador
+
+---
+
+## Configuración Detallada por Servicio
+
+### Nginx - Proxy Reverso y Terminación TLS
+
+Nginx actúa como el punto de entrada único al sistema. Su configuración principal incluye un bloque server que escucha exclusivamente en el puerto 443 con SSL habilitado. La directiva server_name especifica qué dominios acepta.
+
+Los certificados TLS se generan automáticamente al arrancar el contenedor. Aunque son autofirmados (no válidos para producción), permiten cifrar el tráfico y cumplir con los requisitos del proyecto.
+
+La configuración de proxy reverso usa FastCGI para comunicarse con WordPress. Esto es más eficiente que HTTP porque FastCGI mantiene procesos PHP persistentes, evitando el overhead de crear/destruir procesos para cada petición.
+
+### WordPress - Gestor de Contenido y PHP-FPM
+
+El contenedor WordPress ejecuta PHP-FPM en lugar del módulo Apache tradicional. PHP-FPM es un gestor de procesos PHP que permite mejor control sobre recursos y rendimiento.
+
+WordPress viene preinstalado, pero wp-config.php se genera dinámicamente al arrancar el contenedor. Este archivo contiene configuraciones críticas como credenciales de base de datos, claves de seguridad y configuraciones específicas del entorno.
+
+Las claves de seguridad (salt keys) se generan automáticamente y son únicas para cada instalación. Estas claves se usan para cifrar cookies y sesiones, mejorando la seguridad.
+
+### MariaDB - Base de Datos
+
+MariaDB se configura con múltiples archivos de configuración que se procesan en orden. El archivo principal (50-server.cnf) contiene configuraciones básicas, mientras que el archivo Docker-específico (99-docker.cnf) sobrescribe configuraciones para el entorno containerizado.
+
+La configuración de usuarios es compleja porque MySQL/MariaDB valida tanto el nombre de usuario como el host de origen. Docker asigna hostnames específicos a los contenedores, por lo que es necesario crear el usuario para múltiples patrones de host.
+
+El charset se configura como utf8mb4 para soportar completamente Unicode, incluyendo emojis y caracteres especiales que WordPress puede usar.
+
+---
+
+## Redes y Volúmenes
+
+### Red Personalizada
+
+Docker Compose crea automáticamente una red bridge personalizada llamada `wp_net`. Esta red proporciona aislamiento de otras aplicaciones Docker y permite que los contenedores se comuniquen usando nombres de host en lugar de IPs.
+
+La red asigna automáticamente direcciones IP del rango 172.18.0.0/16, con el gateway en 172.18.0.1. Cada contenedor recibe una IP fija dentro de este rango, pero lo importante es que pueden referenciarse por nombre.
+
+Docker incluye un servidor DNS interno que resuelve los nombres de los servicios (nginx, wordpress, mariadb) a sus IPs correspondientes. Esto hace que la configuración sea más robusta porque no depende de IPs específicas.
+
+### Volúmenes Persistentes
+
+Los volúmenes Docker permiten que los datos persistan independientemente del ciclo de vida de los contenedores. Se crean dos volúmenes principales:
+
+**wordpress_data**: Almacena todos los archivos de WordPress incluyendo el core, temas, plugins, uploads y wp-config.php. Esto asegura que cualquier personalización o contenido subido no se pierda al reiniciar.
+
+**mariadb_data**: Contiene todos los archivos de la base de datos incluyendo tablas, índices, logs de transacciones y configuraciones. Es crítico para la persistencia de datos.
+
+Los volúmenes se almacenan físicamente en el host Docker pero están gestionados completamente por Docker. Esto abstrae la gestión del almacenamiento mientras proporciona persistencia.
+
+---
+
+## Gestión de Secretos
+
+Docker Compose incluye un sistema de secrets que permite gestionar información sensible de forma segura. Los secrets se definen como archivos externos que se montan como archivos de solo lectura dentro de los contenedores.
+
+Cada secret aparece como un archivo en /run/secrets/ dentro del contenedor. Los scripts pueden leer estos archivos para obtener contraseñas y configuraciones sensibles sin tenerlas hardcodeadas.
+
+Este enfoque es más seguro que usar variables de entorno porque los secrets no aparecen en la lista de procesos, logs de Docker, o inspección de contenedores. Además, tienen permisos restrictivos de solo lectura.
+
+Los secrets se usan para las contraseñas de la base de datos (root y usuario), credenciales de WordPress (admin y usuario regular), y cualquier otra información sensible necesaria para la aplicación.
+
+---
+
+## Comandos y Debugging
+
+### Gestión del Proyecto
+
+El Makefile proporciona comandos simplificados para gestionar todo el stack. `make build` construye las imágenes, `make up` arranca los servicios, y `make fclean` realiza una limpieza completa incluyendo volúmenes.
+
+Para debugging, puedes acceder a los logs de cualquier servicio específicamente o ver logs de todos los servicios simultáneamente. Los logs muestran tanto la salida estándar como errores, facilitando la identificación de problemas.
+
+### Testing de Conectividad
+
+Puedes probar la conectividad entre contenedores usando herramientas como ping y netcat. Esto es útil para verificar que la red Docker funciona correctamente y que los servicios están escuchando en los puertos esperados.
+
+Para verificar que los servicios están funcionando correctamente, puedes usar comandos específicos como conectarse directamente a MariaDB, verificar que PHP puede conectar a la base de datos, o comprobar que Nginx puede hacer proxy a WordPress.
+
+### Inspección de Estado
+
+Docker proporciona comandos para inspeccionar el estado de redes, volúmenes y contenedores. Esto es invaluable para entender cómo Docker ha configurado la infraestructura y diagnosticar problemas de configuración.
+
+---
+
+## 🔧 Troubleshooting
+
+### Problemas de Conectividad de Red
+
+Los errores de "Connection refused" suelen indicar que un servicio no está escuchando en el puerto esperado o que hay problemas de configuración de red. El diagnóstico típico involucra verificar que los contenedores están en la misma red, que los puertos están abiertos, y que los servicios están configurados para escuchar en todas las interfaces.
+
+### Problemas de Autenticación de Base de Datos
+
+Los errores de "Access denied" en MySQL/MariaDB suelen deberse a problemas en la configuración de usuarios. MySQL valida tanto el usuario como el host, y Docker puede usar hostnames específicos que no coinciden con la configuración inicial del usuario.
+
+La solución típica involucra crear el usuario para múltiples patrones de host o identificar exactamente desde qué hostname se está conectando WordPress.
+
+### Problemas de Proxy y FastCGI
+
+Cuando Nginx no puede conectar con WordPress, suele ser porque PHP-FPM no está configurado correctamente para aceptar conexiones de otros contenedores, o porque la configuración FastCGI de Nginx tiene errores.
+
+### Problemas de Certificados
+
+Los navegadores modernos son estrictos con los certificados SSL. Los certificados autofirmados requieren excepciones manuales o configuración específica del navegador para ser aceptados.
+
+### Problemas de Persistencia
+
+Si los datos no persisten entre reinicios, puede ser que los volúmenes no estén configurados correctamente, que los paths de montaje sean incorrectos, o que haya problemas de permisos dentro de los contenedores.
+
+---
+
+## Conceptos Clave del Proyecto
+
+### ¿Por qué esta Arquitectura?
+
+La separación de servicios en contenedores individuales sigue principios de microservicios: cada contenedor tiene una responsabilidad específica, pueden escalarse independientemente, y los fallos están aislados.
+
+### Seguridad por Diseño
+
+El uso de una red personalizada aísla los servicios del exterior. Solo Nginx expone puertos públicos, mientras que WordPress y MariaDB son inaccesibles directamente desde fuera del stack.
+
+### Persistencia vs Inmutabilidad
+
+Los contenedores son inmutables (se destruyen y recrean), pero los datos importantes persisten en volúmenes. Esto permite actualizaciones limpias mientras se mantiene la información crítica.
+
+### Configuración Dinámica
+
+Los scripts de inicialización permiten que la misma imagen Docker funcione en diferentes entornos simplemente cambiando variables de entorno y secrets, sin necesidad de reconstruir imágenes.
+

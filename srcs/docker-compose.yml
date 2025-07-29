@@ -8,11 +8,11 @@ services:
     ports:
       - "443:443"
     volumes:
-      - wordpress_data:/var/www/html
+      - /home/aletheios/data/wordpress:/var/www/html
     networks:
       - inception_net
-    environment:
-      - DOMAIN_NAME=alepinto.42.fr
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD", "curl", "-k", "-f", "https://localhost:443/"]
       interval: 30s
@@ -26,22 +26,14 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
-    environment:
-      - DB_NAME=wordpress
-      - DB_USER=wp_user
-      - DB_HOST=mariadb
-      - DOMAIN_NAME=localhost
-      - WP_TITLE=Mi sitio WordPress
-      - WP_ADMIN_USR=admin
-      - WP_ADMIN_EMAIL=admin@example.com
-      - WP_USR=author
-      - WP_EMAIL=author@example.com
+    env_file:
+      - .env
     secrets:
       - db_password
       - wp_admin_password
       - wp_user_password
     volumes:
-      - wordpress_data:/var/www/html
+      - /home/aletheios/data/wordpress:/var/www/html
     networks:
       - inception_net
     healthcheck:
@@ -54,18 +46,17 @@ services:
   mariadb:
     build: ./requirements/mariadb
     container_name: mariadb
-    environment:
-      - MYSQL_DATABASE=wordpress
-      - MYSQL_USER=wp_user
+    env_file:
+      - .env
     secrets:
       - db_password
       - db_root_password
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - /home/aletheios/data/mariadb:/var/lib/mysql
     networks:
       - inception_net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "wp_user", "-p$$(cat /run/secrets/db_password)"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "wp_user", "-p$(cat /run/secrets/db_password)"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -80,10 +71,6 @@ secrets:
     file: ../secrets/wp_admin_password.txt
   wp_user_password:
     file: ../secrets/wp_user_password.txt
-
-volumes:
-  wordpress_data:
-  mariadb_data:
 
 networks:
   inception_net:

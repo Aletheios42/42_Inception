@@ -1,0 +1,28 @@
+Nginx
+1. Documentación oficial de Nginx
+Página principal:
+https://nginx.org/en/docs/
+
+2. Configuración del servidor (server {} block)
+https://nginx.org/en/docs/http/ngx_http_core_module.html#server
+
+3. TLS/SSL en Nginx
+https://nginx.org/en/docs/http/configuring_https_servers.html
+
+4. Módulo FastCGI
+https://nginx.org/en/docs/http/ngx_http_fastcgi_module.html
+
+5. Estructura de configuración (nginx.conf, conf.d, etc.)
+https://nginx.org/en/docs/beginners_guide.html
+(Ver sección "Configuration file structure")
+
+Alpine Linux
+6. Gestión de paquetes con apk
+https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management
+
+7. Instalación de Nginx en Alpine
+https://wiki.alpinelinux.org/wiki/Nginx
+
+OpenSSL
+8. Generación de certificados con OpenSSL
+https://www.openssl.org/docs/man1.1.1/man1/req.html

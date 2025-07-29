@@ -2,7 +2,7 @@ FROM alpine:3.19
 
 WORKDIR /app
 
-RUN apk update && apk add nginx openssl netcat-openbsd curl
+RUN apk update && apk add nginx openssl netcat-openbsd curl gettext
 
 COPY ./tools/script.sh /script.sh
 

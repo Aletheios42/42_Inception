@@ -19,5 +19,7 @@ clean:
 
 fclean: down clean
 	docker volume rm inception_wordpress_data || true
+	sudo rm -rf /home/aletheios/data/wordpress/* || true
+	sudo rm -rf /home/aletheios/data/mariadb/* || true
 
 re: fclean build up
