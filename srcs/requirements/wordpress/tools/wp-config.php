@@ -76,6 +76,12 @@ define('NONCE_SALT',       '[MU>|HQim/Zu}TuhU p9gLw!+X/o!P}NOWYhX2aJm</~|rFmb{8x
  * SHOW TABLES;
  */
 $table_prefix = 'wp_';
+## redis
+
+define('WP_REDIS_HOST', 'redis');
+define('WP_REDIS_PORT', 6379);
+define('WP_CACHE_KEY_SALT', 'tu_dominio_o_sufijo');
+define('WP_REDIS_CLIENT', 'phpredis');
 
 /**
  * MODO DEBUG DE WORDPRESS

@@ -15,7 +15,8 @@ RUN apk add --no-cache \
     php82 php82-fpm php82-mysqli php82-curl php82-json php82-openssl \
     php82-session php82-ctype php82-dom php82-zip php82-mbstring \
     php82-phar php82-pdo php82-pdo_mysql php82-tokenizer \
-    curl bash tar netcat-openbsd less
+    curl bash tar netcat-openbsd less \
+    redis php-redis
 
 # Crear alias para facilitar compatibilidad con scripts que esperan "php" y "/etc/php"
 # ya que Alpine nombra los paquetes con versiones especificas y no genericas
