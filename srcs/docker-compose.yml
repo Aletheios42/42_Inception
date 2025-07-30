@@ -111,6 +111,21 @@ services:
     networks:
       - inception_net
 
+  cadvisor:
+    container_name: cadvisor
+    build: ./requirements/bonus/cadvisor/.
+    image: cadvisor:42
+    ports:
+      - "8081:8080"
+    networks:
+      - inception_net
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro 
+      - /sys:/sys:ro 
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: always
+
 secrets:
   db_password:
     file: ../secrets/db_password.txt
