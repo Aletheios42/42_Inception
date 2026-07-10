@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inception - Services Dashboard</title>
+<style>
+:root {
+    --bg: #0f0f23;
+    --card: #1a1a2e;
+    --accent: #e94560;
+    --accent2: #0f3460;
+    --text: #eee;
+    --muted: #8892b0;
+    --green: #64ffda;
+    --border: #233;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+}
+header { text-align: center; margin-bottom: 2rem; }
+header h1 { font-size: 2.5rem; letter-spacing: 2px; margin-bottom: .3rem; }
+header h1 span { color: var(--accent); }
+header p { color: var(--muted); font-size: 1rem; }
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 1100px;
+}
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: transform .2s, border-color .2s;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+.card:hover { transform: translateY(-4px); border-color: var(--accent); }
+.card .tag {
+    display: inline-block;
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 2px 8px;
+    width: fit-content;
+    margin-bottom: .5rem;
+}
+.card.bonus .tag { color: var(--accent); border-color: var(--accent); }
+.card h2 { font-size: 1.3rem; }
+.card .url {
+    font-family: 'Courier New', monospace;
+    font-size: .9rem;
+    color: var(--accent2);
+    background: rgba(15,52,96,.15);
+    border-radius: 6px;
+    padding: 6px 10px;
+    word-break: break-all;
+    color: var(--green);
+}
+.card .desc { color: var(--muted); font-size: .85rem; line-height: 1.4; }
+footer { margin-top: 2rem; color: var(--muted); font-size: .8rem; text-align: center; }
+footer a { color: var(--accent2); text-decoration: none; }
+.dns-box {
+    background: var(--accent2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    width: 100%;
+    max-width: 1100px;
+    text-align: center;
+}
+.dns-box h2 { color: var(--green); margin-bottom: .5rem; }
+.dns-box code {
+    font-size: 1.1rem;
+    color: var(--text);
+    background: rgba(0,0,0,.3);
+    padding: 8px 16px;
+    border-radius: 6px;
+}
+</style>
+</head>
+<body>
+
+<header>
+    <h1>INCEPT<span>ION</span></h1>
+    <p>Services Dashboard &mdash; ${DOMAIN_NAME}</p>
+</header>
+
+<div class="grid">
+
+    <a class="card" href="https://${DOMAIN_NAME}">
+        <span class="tag">Mandatory</span>
+        <h2>WordPress</h2>
+        <div class="url">https://${DOMAIN_NAME}</div>
+        <div class="desc">Main WordPress site served via NGINX with TLS on port 443.</div>
+    </a>
+
+    <a class="card" href="https://${DOMAIN_NAME}/wp-admin">
+        <span class="tag">Mandatory</span>
+        <h2>WordPress Admin</h2>
+        <div class="url">https://${DOMAIN_NAME}/wp-admin</div>
+        <div class="desc">WordPress administration panel. Login with WP_ADMIN_USER credentials.</div>
+    </a>
+
+    <a class="card" href="http://${DOMAIN_NAME}:9080">
+        <span class="tag">Bonus</span>
+        <h2>Adminer</h2>
+        <div class="url">http://${DOMAIN_NAME}:9080</div>
+        <div class="desc">Lightweight database management UI. Server: mariadb, User: wp_user.</div>
+    </a>
+
+    <a class="card" href="http://${DOMAIN_NAME}:8081">
+        <span class="tag">Bonus</span>
+        <h2>cAdvisor</h2>
+        <div class="url">http://${DOMAIN_NAME}:8081</div>
+        <div class="desc">Container resource monitoring and metrics dashboard.</div>
+    </a>
+
+    <a class="card" href="https://${DOMAIN_NAME}/cv/">
+        <span class="tag">Bonus</span>
+        <h2>CV Page</h2>
+        <div class="url">https://${DOMAIN_NAME}/cv/</div>
+        <div class="desc">Static CV page served with Node.js, proxied through NGINX.</div>
+    </a>
+
+    <div class="card bonus">
+        <span class="tag">Bonus</span>
+        <h2>FTP Server</h2>
+        <div class="url">ftp://${DOMAIN_NAME}:21</div>
+        <div class="desc">FTP access to WordPress files. User from FTP_USER in .env.</div>
+    </div>
+
+    <div class="card bonus">
+        <span class="tag">Bonus</span>
+        <h2>Redis Cache</h2>
+        <div class="url">redis:6379 (internal)</div>
+        <div class="desc">Object cache for WordPress. Internal network only, not exposed.</div>
+    </div>
+
+    <div class="card bonus">
+        <span class="tag">Bonus</span>
+        <h2>MariaDB</h2>
+        <div class="url">mariadb:3306 (internal)</div>
+        <div class="desc">Database backend. Internal network only, not exposed.</div>
+    </div>
+
+</div>
+
+<div class="dns-box">
+    <h2>DNS Server (dnsmasq)</h2>
+    <p style="color: var(--muted); margin-bottom: .8rem;">This container resolves ${DOMAIN_NAME} to 127.0.0.1</p>
+    <code>nameserver 127.0.0.1</code>
+    <p style="color: var(--muted); margin-top: .8rem; font-size: .85rem;">Port 53 (TCP/UDP) &mdash; add to /etc/resolv.conf or configured by bootstrap.sh</p>
+</div>
+
+<footer>
+    <p>Inception Project &mdash; 42 Curriculum &mdash; Built with Docker Compose</p>
+</footer>
+
+</body>
+</html>

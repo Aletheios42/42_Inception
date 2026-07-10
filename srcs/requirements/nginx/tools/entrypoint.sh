@@ -14,4 +14,8 @@ envsubst '${DOMAIN_NAME}' \
     < /etc/nginx/templates/nginx.conf.template \
     > /etc/nginx/nginx.conf
 
+envsubst '${DOMAIN_NAME}' \
+    < /etc/nginx/templates/homepage.html.template \
+    > /etc/nginx/homepage/index.html
+
 exec "$@"

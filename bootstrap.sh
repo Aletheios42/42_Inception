@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # bootstrap.sh — one-shot setup for a fresh evaluation VM.
@@ -17,8 +17,25 @@ echo "Domain:   ${DOMAIN}"
 echo "Data dir: /home/${LOGIN}/data"
 echo ""
 
+# --- 0. Prerequisites check ---
+if ! command -v docker >/dev/null 2>&1; then
+    echo "ERROR: Docker is not installed."
+    echo "Run:  make vm-setup   (or:  sudo ./vm-setup.sh)"
+    exit 1
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+    echo "ERROR: Docker Compose plugin is not installed."
+    echo "Run:  make vm-setup   (or:  sudo ./vm-setup.sh)"
+    exit 1
+fi
+
+if ! command -v make >/dev/null 2>&1; then
+    echo "WARNING: 'make' not found. Install with: sudo apt install make"
+fi
+
 # --- 1. secrets/ ---
-echo "[1/4] Generating secrets..."
+echo "[1/5] Generating secrets..."
 mkdir -p "${SECRETS_DIR}"
 
 if [ ! -f "${SECRETS_DIR}/db_password.txt" ]; then
@@ -66,7 +83,7 @@ else
 fi
 
 # --- 2. srcs/.env ---
-echo "[2/4] Generating srcs/.env..."
+echo "[2/5] Generating srcs/.env..."
 if [ ! -f "${SRCS_DIR}/.env" ]; then
     cat > "${SRCS_DIR}/.env" <<EOF
 # Database Configuration
@@ -99,23 +116,38 @@ else
     echo "  updated existing .env with current login/domain"
 fi
 
-# --- 3. /etc/hosts ---
-echo "[3/4] Configuring /etc/hosts..."
+# --- 3. /etc/hosts + DNS ---
+echo "[3/5] Configuring DNS..."
 if grep -q "${DOMAIN}" /etc/hosts 2>/dev/null; then
     echo "  ${DOMAIN} already in /etc/hosts"
 else
-    echo "127.0.0.1 ${DOMAIN}" | sudo tee -a /etc/hosts > /dev/null
-    echo "  added ${DOMAIN} -> 127.0.0.1"
+    echo "127.0.0.1 ${DOMAIN}" | sudo tee -a /etc/hosts > /dev/null 2>&1 \
+        && echo "  added ${DOMAIN} -> 127.0.0.1 to /etc/hosts" \
+        || echo "  WARNING: /etc/hosts not writable."
 fi
+echo "  dnsmasq container will also resolve ${DOMAIN} on port 53."
 
 # --- 4. Data directories ---
-echo "[4/4] Creating data directories..."
+echo "[4/5] Creating data directories..."
 sudo mkdir -p "/home/${LOGIN}/data/wordpress"
 sudo mkdir -p "/home/${LOGIN}/data/mariadb"
 sudo chmod 777 "/home/${LOGIN}/data/wordpress"
 sudo chmod 777 "/home/${LOGIN}/data/mariadb"
 echo "  created /home/${LOGIN}/data/{wordpress,mariadb}"
 
+# --- 5. Summary ---
+echo "[5/5] Setup complete."
 echo ""
 echo "=== Bootstrap complete ==="
+echo ""
+echo "Services after 'make':"
+echo "  WordPress:  https://${DOMAIN}"
+echo "  WP Admin:   https://${DOMAIN}/wp-admin"
+echo "  Dashboard:  https://${DOMAIN}/services"
+echo "  Adminer:    http://${DOMAIN}:9080"
+echo "  cAdvisor:   http://${DOMAIN}:8081"
+echo "  CV Page:    https://${DOMAIN}/cv/"
+echo "  FTP:        ftp://${DOMAIN}:21"
+echo "  DNS:        127.0.0.1:53 (dnsmasq)"
+echo ""
 echo "Run 'make' to build and start the project."

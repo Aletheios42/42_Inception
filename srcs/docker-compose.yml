@@ -132,6 +132,19 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     restart: always
 
+  dnsmasq:
+    build: ./requirements/bonus/dnsmasq
+    image: dnsmasq
+    container_name: dnsmasq
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    networks:
+      - inception_net
+    env_file:
+      - .env
+    restart: always
+
 secrets:
   db_password:
     file: ../secrets/db_password.txt
