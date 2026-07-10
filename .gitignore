@@ -1,0 +1,8 @@
+secrets/
+srcs/.env
+.env
+*.pem
+*.key
+*.crt
+en.subject.pdf
+inception/

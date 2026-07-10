@@ -1,0 +1,161 @@
+services:
+  nginx:
+    build: ./requirements/nginx
+    image: nginx
+    container_name: nginx
+    depends_on:
+      wordpress:
+        condition: service_healthy
+    ports:
+      - "443:443"
+    volumes:
+      - wp-files:/var/www/html
+    networks:
+      - inception_net
+    env_file:
+      - .env
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:443/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  wordpress:
+    build: ./requirements/wordpress
+    image: wordpress
+    container_name: wordpress
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    env_file:
+      - .env
+    secrets:
+      - db_password
+      - wp_admin_password
+      - wp_user_password
+    volumes:
+      - wp-files:/var/www/html
+    networks:
+      - inception_net
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep php-fpm > /dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  mariadb:
+    build: ./requirements/mariadb
+    image: mariadb
+    container_name: mariadb
+    env_file:
+      - .env
+    secrets:
+      - db_password
+      - db_root_password
+    volumes:
+      - wp-database:/var/lib/mysql
+    networks:
+      - inception_net
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "wp_user", "-p$(cat /run/secrets/db_password)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ### Bonus
+  adminer:
+    build: ./requirements/bonus/adminer
+    image: adminer
+    container_name: adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: mariadb
+      ADMINER_DESIGN: galkaev
+    ports:
+      - "9080:8080"
+    networks:
+      - inception_net
+    restart: always
+
+  cv_server:
+    build: ./requirements/bonus/cv_server
+    image: cv_server
+    container_name: cv_server
+    ports:
+      - "7777:7777"
+    networks:
+      - inception_net
+    restart: always
+
+  ftp_server:
+    build: ./requirements/bonus/ftp_server
+    image: ftp_server
+    container_name: ftp_server
+    ports:
+      - "21:21"
+      - "21100-21110:21100-21110"
+    volumes:
+      - wp-files:/var/www/html
+    networks:
+      - inception_net
+    restart: always
+    env_file:
+      - .env
+
+  redis:
+    build: ./requirements/bonus/redis
+    image: redis
+    container_name: redis
+    depends_on:
+      - wordpress
+    networks:
+      - inception_net
+    restart: always
+
+  cadvisor:
+    build: ./requirements/bonus/cadvisor
+    image: cadvisor
+    container_name: cadvisor
+    ports:
+      - "8081:8080"
+    networks:
+      - inception_net
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: always
+
+secrets:
+  db_password:
+    file: ../secrets/db_password.txt
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+  wp_admin_password:
+    file: ../secrets/wp_admin_password.txt
+  wp_user_password:
+    file: ../secrets/wp_user_password.txt
+
+networks:
+  inception_net:
+    driver: bridge
+
+volumes:
+  wp-files:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/wordpress
+  wp-database:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/mariadb
