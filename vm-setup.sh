@@ -82,20 +82,16 @@ fi
 
 systemctl enable --now docker > /dev/null 2>&1 || true
 
-# --- 6. DNS configuration for dnsmasq container ---
-echo "[6/6] Configuring DNS..."
-# Stop systemd-resolved if it occupies port 53
-if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
-    systemctl disable --now systemd-resolved 2>/dev/null || true
-    rm -f /etc/resolv.conf
-    echo "nameserver 127.0.0.1" > /etc/resolv.conf
-    echo "  systemd-resolved disabled, DNS -> 127.0.0.1 (dnsmasq container)"
-elif [ -f /etc/resolv.conf ] && ! grep -q "127.0.0.1" /etc/resolv.conf 2>/dev/null; then
-    cp /etc/resolv.conf /etc/resolv.conf.bak 2>/dev/null || true
-    echo "nameserver 127.0.0.1" > /etc/resolv.conf
-    echo "  DNS -> 127.0.0.1 (dnsmasq container)"
+# --- 6. DNS check (do NOT change resolv.conf — dnsmasq is optional) ---
+echo "[6/6] Checking DNS..."
+if grep -q "127.0.0.1" /etc/resolv.conf 2>/dev/null; then
+    echo "  WARNING: /etc/resolv.conf points to 127.0.0.1 but dnsmasq is not running yet."
+    echo "  Fixing: setting DNS to 8.8.8.8 so apt/curl work..."
+    echo "nameserver 8.8.8.8" > /etc/resolv.conf
+    echo "  DNS -> 8.8.8.8 (dnsmasq container can be used after 'make')"
 else
-    echo "  DNS already configured"
+    echo "  DNS OK ($(grep nameserver /etc/resolv.conf | head -1))"
+    echo "  dnsmasq container available on port 53 after 'make' (optional)"
 fi
 
 # --- Summary ---

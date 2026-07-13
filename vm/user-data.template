@@ -1,0 +1,37 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  network:
+    network:
+      version: 2
+      ethernets:
+        enp0s3:
+          dhcp4: true
+  storage:
+    layout:
+      name: direct
+  identity:
+    hostname: inception
+    realname: alepinto
+    username: alepinto
+    password: "${PASSWORD_HASH}"
+  ssh:
+    install-server: true
+    allow-pw: true
+  packages:
+    - curl
+    - git
+    - make
+    - openssl
+    - ca-certificates
+  late-commands:
+    - curtin in-target --target=/target -- curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+    - curtin in-target --target=/target -- sh /tmp/get-docker.sh
+    - curtin in-target --target=/target -- usermod -aG docker alepinto
+    - curtin in-target --target=/target -- systemctl enable docker
+    - curtin in-target --target=/target -- apt-get install -y docker-compose-plugin
+  user-data:
+    disable_root: false

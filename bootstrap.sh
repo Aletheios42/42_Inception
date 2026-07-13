@@ -125,7 +125,7 @@ else
         && echo "  added ${DOMAIN} -> 127.0.0.1 to /etc/hosts" \
         || echo "  WARNING: /etc/hosts not writable."
 fi
-echo "  dnsmasq container will also resolve ${DOMAIN} on port 53."
+echo "  dnsmasq container available on port 53 after 'make' (optional, does not change system DNS)"
 
 # --- 4. Data directories ---
 echo "[4/5] Creating data directories..."
